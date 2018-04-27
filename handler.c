@@ -32,6 +32,7 @@ HTTPStatus  handle_request(Request *r) {
 
     /* Parse request */
 
+
     /* Determine request path */
     debug("HTTP REQUEST PATH: %s", r->path);
 
