@@ -66,11 +66,6 @@ if __name__ == '__main__':
         usage(1)
 
 
-
-    print(PROCESSES, REQUESTS, VERBOSE, URL) 
-
-    
-
         ##error("client: socket");
 
 
