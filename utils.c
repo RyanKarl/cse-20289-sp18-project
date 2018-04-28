@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <stdio.h>
+
 /**
  * Determine mime-type from file extension.
  *
@@ -64,7 +66,14 @@ char * determine_mimetype(const char *path) {
  * string must later be free'd.
  **/
 char * determine_request_path(const char *uri) {
-    return NULL;
+    char buffer[BUFSIZ];
+    char * path = strtok(buffer,"/");
+    path++;
+    path = strtok(NULL, "/");
+    char * qmark = path;
+    qmark = strchr(path, '?');
+    qmark = '\0';
+    return path;
 }
 
 /**
@@ -83,6 +92,12 @@ const char * http_status_string(HTTPStatus status) {
         "500 Internal Server Error",
         "418 I'm A Teapot",
     };
+
+    if (status == HTTP_STATUS_OK) return StatusString[0];
+    if (status == HTTP_STATUS_BAD_REQUEST) return StatusString[1];
+    if (status == HTTP_STATUS_NOT_FOUND) return StatusString[2];
+    if (status == HTTP_STATUS_SERVER_ERROR) return StatusString[3];
+    if (status == 418) return StatusString[4];
 
     return NULL;
 }
@@ -104,7 +119,11 @@ char * skip_nonwhitespace(char *s) {
  * @return  Point to first non-whitespace character in s.
  **/
 char * skip_whitespace(char *s) {
-    return s;
+    for (char *c = s; *c; c++)
+    {
+        if (isspace(*c)) c++;
+    }
+    return c;
 }
 
 /* vim: set expandtab sts=4 sw=4 ts=8 ft=c: */

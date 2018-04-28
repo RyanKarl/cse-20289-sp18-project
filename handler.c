@@ -28,15 +28,60 @@ HTTPStatus handle_error(Request *request, HTTPStatus status);
  * On error, handle_error should be used with an appropriate HTTP status code.
  **/
 HTTPStatus  handle_request(Request *r) {
-    HTTPStatus result;
+    HTTPStatus result = HTTP_STATUS_OK;
 
     /* Parse request */
-
+    if (parse_request(r) == -1)
+    {
+        fprintf(stderr, "parse_request failed: %s\n", strerror(errno));
+        result = HTTP_STATUS_BAD_REQUEST;
+        result = handle_error(r, result);
+    }
 
     /* Determine request path */
+    r->path = determine_request_path(r->uri); 
+    if (r->path == NULL)
+    {
+        fprintf(stderr, "determine_request_path failed: %s\n", strerror(errno));
+        result = HTTP_STATUS_NOT_FOUND;
+        result = handle_error(r, result);
+    }
     debug("HTTP REQUEST PATH: %s", r->path);
 
     /* Dispatch to appropriate request handler type based on file type */
+    struct stat s;
+    if(stat(r->file, &s) < 0)
+    {
+        fprintf(stderr, "stat failed: %s\n", strerror(errno));
+        result = HTTP_STATUS_SERVER_ERROR;
+    }
+
+    if ((s.st_mode & S_IFMT) == S_IFDIR)
+    {
+        result = handle_browse_request(r);
+    }
+
+    int cgi = access(r->file, X_OK);
+    if (cgi < 0)
+    {
+        fprintf(stderr, "access failed: %s\n", strerror(errno));
+        result = HTTP_STATUS_SERVER_ERROR;
+    }
+    else if (cgi == 0) 
+    {
+        result = handle_cgi_request(r);
+    }
+
+    int file_num = access(r->file, R_OK);
+    if (fle_num < 0)
+    {   
+        fprintf(stderr, "access failed: %s\n", strerror(errno)); 
+        result = HTTP_STATUS_SERVER_ERROR;
+    }
+    else if (file_num == 0)
+    {
+        result = handle_file_request(r);
+    }
 
     log("HTTP REQUEST STATUS: %s", http_status_string(result));
     return result;
@@ -58,12 +103,41 @@ HTTPStatus  handle_browse_request(Request *r) {
     int n;
 
     /* Open a directory for reading or scanning */
+    n = scandir(r->file, &entries, NULL, alphasort);
+    if (scan_num)
+    {
+        fprintf(stderr, "scandir failed: %s\n", strerror(errno));
+        return HTTP_STATUS_NOT_FOUND;
+    }
 
     /* Write HTTP Header with OK Status and text/html Content-Type */
+    /*char buffer[BUFSIZ];
+    for (Header * h = r->headers; *h; h++)
+    {
+        sprintf(buffer, "%s: %s\n", h->name, h->value);
+        fprintf(r->file, buffer);
+    }*/
+    fprintf(r->file, "HTTP/1.0 200 OK\n");
+    fprintf(r->file, "Content-Type: text/html\n");
+    fprintf(r->file, "\r\n");
+
 
     /* For each entry in directory, emit HTML list item */
+    fprintf(r->file, "<ul>");
+    for (int i = 0; i < n; i++)
+    {
+        fprintf(r->file, "<li>%s</li>", entries[i]);
+        free(entries[i]);
+    }
+    fprintf(r->file, "</ul>");
 
     /* Flush socket, return OK */
+    free(entries);
+    if (fflush(r->file) < 0)
+    {
+        fprintf(stderr, "fflush failed: %s\m", strerror(errno));
+        return 418;
+    }
     return HTTP_STATUS_OK;
 }
 
@@ -85,6 +159,12 @@ HTTPStatus  handle_file_request(Request *r) {
     size_t nread;
 
     /* Open file for reading */
+    int fd = fopen(r->file);
+    if (fd < 0)
+    {
+        fprintf(stderr, "fopen failed: %s\n", strerror(errno));
+        //return HTTP_STATUS_
+    }
 
     /* Determine mimetype */
 
@@ -140,10 +220,21 @@ HTTPStatus handle_cgi_request(Request *r) {
  **/
 HTTPStatus  handle_error(Request *r, HTTPStatus status) {
     const char *status_string = http_status_string(status);
+    // 200
+    // 400 - bad request
+    // 404 - not found
+    // 500 - internal server error
 
     /* Write HTTP Header */
+    char buffer[BUFSIZ];
+    for (Header * h = r->headers; *h; h++)
+    {
+        sprintf(buffer, "%s: %s\n", h->name, h->value);
+        fputs(buffer);
+    }
 
     /* Write HTML Description of Error*/
+    fputs(status_string, r->file);
 
     /* Return specified status */
     return status;
