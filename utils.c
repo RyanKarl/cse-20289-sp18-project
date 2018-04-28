@@ -109,7 +109,11 @@ const char * http_status_string(HTTPStatus status) {
  * @return  Point to first whitespace character in s.
  **/
 char * skip_nonwhitespace(char *s) {
-    return s;
+    for (char *c = s; *c, c++)
+    {
+        if (!isspace(*c)) c++;
+    }
+    return c;
 }
 
 /**
