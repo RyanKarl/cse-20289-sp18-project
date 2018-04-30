@@ -37,16 +37,35 @@ char * determine_mimetype(const char *path) {
     char *ext;
     char *mimetype;
     char *token;
+    char *endToken;
     char buffer[BUFSIZ];
     FILE *fs = NULL;
 
     /* Find file extension */
-
+    ext = strrchr(path,'.')+1;
     /* Open MimeTypesPath file */
-
+    fs = fopen(MimeTypesPath,'r');
+    if (!fs){
+        return DefaultMimeType;
+    }
     /* Scan file for matching file extensions */
-
-    return NULL;
+    while(fgets(buffer,BUFSIZ,fs)){
+        mimetype = buffer;
+        token  = skip_nonwhitespace(mimetype);
+        *token = '\0';
+        token++;
+        while(token != '\0'){
+            token  = skip_whitespace(token);
+            endToken = skip_nonwhitespace(token);
+            *endToken = '\0';
+            if(strcmp(token, ext) == 0){
+                return mimetype;
+            }
+            endToken++;
+            token = endToken;
+        }
+    }
+    return DefaultMimeType;
 }
 
 /**
