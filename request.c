@@ -34,7 +34,7 @@ Request * accept_request(int sfd) {
     socklen_t rlen;
 
     /* Allocate request struct (zeroed) */
-    r = &calloc(1, sizeof(Request));
+    r = calloc(1, sizeof(Request));
     if (r == NULL)
     {
         fprintf(stderr, "calloc failed: %s\n", strerror(errno));
@@ -51,8 +51,8 @@ Request * accept_request(int sfd) {
     r->fd = client_fd;
 
     /* Lookup client information */
-    char host = r->host;
-    char port = r->port;
+    char * host = r->host;
+    char * port = r->port;
     int  flags = NI_NUMERICHOST | NI_NUMERICSERV;
     int  status;
     if ((status = getnameinfo(&raddr, rlen, host, sizeof(host), port, sizeof(port), flags)) != 0) {
@@ -217,7 +217,7 @@ int parse_request_method(Request *r) {
     if (r->query == NULL)
     {
         fprintf(stderr, "strdup failed: %s\n", strerror(errno));
-        free(r->request);
+        free(r);
         goto fail;
     }
 
@@ -259,7 +259,7 @@ fail:
  *      headers.append(header)
  **/
 int parse_request_headers(Request *r) {
-    struct header *curr = &calloc(1, sizeof(Header));
+    struct header *curr = calloc(1, sizeof(Header));
     if (curr == NULL)
     {
         fprintf(stderr, "callloc failed: %s\n", strerror(errno));
@@ -273,7 +273,7 @@ int parse_request_headers(Request *r) {
     char *value;
 
     /* Parse headers from socket */
-    while ((fgets(buffer, BUFSIZ, r->fd)) != NULL)
+    while ((fgets(buffer, BUFSIZ, r->file)) != NULL)
     {
         name = buffer;
         name = skip_whitespace(name);

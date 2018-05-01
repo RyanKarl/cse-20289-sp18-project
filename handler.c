@@ -150,7 +150,7 @@ HTTPStatus  handle_file_request(Request *r) {
     FILE *fs;
     char buffer[BUFSIZ];
     char *mimetype = NULL;
-    size_t nread;
+    //size_t nread;
 
     /* Open file for reading */
     fs = fopen(r->path, "r+");
@@ -214,7 +214,8 @@ HTTPStatus handle_cgi_request(Request *r) {
         "REMOTE_PORT",
         "REQUEST_METHOD",
         "REQUEST_URI",
-        "HTTP_HOST"
+        "HTTP_HOST",
+        "REMOTE_ADDR"
     };
 
     char * struct_values[] = {
@@ -222,6 +223,7 @@ HTTPStatus handle_cgi_request(Request *r) {
         r->port,
         r->method,
         r->uri,
+        r->host,
         r->host
     };
     for (int i = 0; i < sizeof(struct_names)/sizeof(char *); i++)
@@ -231,28 +233,28 @@ HTTPStatus handle_cgi_request(Request *r) {
  
     /* Export CGI environment variables from request headers */
     char * header_names[] = {
-        "DOCUMENT_ROOT",
-        "REMOTE_ADDR",
-        "SCRIPT_FILENAME",
-        "SERVER_PORT",
-        "HTTP_ACCEPT",
+        "HTTP_ACCEPT", // theses three from request headers, loop thru, connection type, language, accept, host name, 
         "HTTP_ACCEPT_LANGUAGE",
         "HTTP_ACCEPT_ENCODING",
         "HTTP_CONNECTION",
         "HTTP_USER_AGENT"
     };
 
-    char * header_values[] = {
-        
-    };
-
+    setenv("DOCUMENT_ROOT", RootPath, 1);
+    setenv("SERVER_PORT", Port, 1);
+    //setenv("SCRIPT_FILENAME", , 1); // file name in uri
+    char * val;
     for (int j = 0; j < sizeof(header_names)/sizeof(char *); j++)
     {
-        setenv(header_names[j], header_values[j], 1);
+        for (struct header * h = &r->headers[0]; h != NULL; h = h->next)
+        {
+            if (strcmp(h->name, header_names[j]) == 0) val = h->value;
+        }
+        setenv(header_names[j], val, 1);
     }
 
     /* POpen CGI Script */
-    pfs = popen();
+    pfs = popen(r->path, "r"); // pass in path user requested 
     if (pfs == NULL)
     {
         fprintf(stderr, "popen failed: %s\n", strerror(errno));
