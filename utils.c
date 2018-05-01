@@ -70,7 +70,7 @@ char * determine_mimetype(const char *path) {
 
 /**
  * Determine actual filesystem path based on RootPath and URI.
- *
+ *i
  * @param   uri         Resource path of URI.
  * @return  An allocated string containing the full path of the resource on the
  * local filesystem.
@@ -89,7 +89,7 @@ char * determine_request_path(const char *uri) {
     char * path = strtok((char*)uri,"/"); // get to first slash
     path++; // get to second slash
     path = strtok(NULL, "/"); // get to beginning slash of path
-    char * endToken = strchr(path, ']');
+    char * endToken = strchr(path, '?');
     *endToken = '\0';
     return path;
 }
