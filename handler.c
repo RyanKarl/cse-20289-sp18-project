@@ -233,7 +233,7 @@ HTTPStatus handle_cgi_request(Request *r) {
  
     /* Export CGI environment variables from request headers */
     char * header_names[] = {
-        "HTTP_ACCEPT", // theses three from request headers, loop thru, connection type, language, accept, host name, 
+        "HTTP_ACCEPT", // theses three from request headers
         "HTTP_ACCEPT_LANGUAGE",
         "HTTP_ACCEPT_ENCODING",
         "HTTP_CONNECTION",
@@ -242,7 +242,7 @@ HTTPStatus handle_cgi_request(Request *r) {
 
     setenv("DOCUMENT_ROOT", RootPath, 1);
     setenv("SERVER_PORT", Port, 1);
-    //setenv("SCRIPT_FILENAME", , 1); // file name in uri
+    setenv("SCRIPT_FILENAME", strrchr(r->uri, '/'), 1); // file name in uri
     char * val;
     for (int j = 0; j < sizeof(header_names)/sizeof(char *); j++)
     {
