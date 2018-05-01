@@ -23,8 +23,7 @@ int single_server(int sfd) {
         if(!request){
             continue;
         }
-        HTTPStatus result;
-        result = handle_request(request);
+        handle_request(request);
 	/* Free request */
         free_request(request);
     }

@@ -48,16 +48,16 @@ bool parse_options(int argc, char *argv[], ServerMode *mode) {
     int argind = 1;
     while(argind < argc && argv[argind][0] == '-' && strlen(argv[argind]) > 1){
         char *arg = argv[argind++];
-        switch(arg[1]):
+        switch(arg[1]){
             case 'h':
                 usage(progname,0);
                 break;
             case 'c':
-                if streq(argv[argind],"single"){
-                    mode = SINGLE;
+                if(streq(argv[argind],"single")){
+                    *mode = SINGLE;
                 } 
                 else if(streq(argv[argind],"forking")){
-                    mode = FORKING;
+                    *mode = FORKING;
                 } else {
                     usage(progname,1);
                 }
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
     ServerMode mode;
 
     /* Parse command line options */
-    parse_options(argc, argv, mode);
+    parse_options(argc, argv, &mode);
     /* Listen to server socket */
     int sfd = socket_listen(Port);
     if(sfd < 0){

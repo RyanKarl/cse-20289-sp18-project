@@ -287,7 +287,6 @@ int parse_request_headers(Request *r) {
         temp = '\0'; temp++; // get rid of \r
         temp = '\0'; temp++; // get rid of \n
         curr->value = value;
-        buffer = temp;
         curr++;
     }
     
