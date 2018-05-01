@@ -38,7 +38,7 @@ int forking_server(int sfd) {
             while (fgets(buffer, BUFSIZ, request)) {
                 fputs(buffer, request);
             }
-            fclose(request);
+            free_request(request);
             exit(EXIT_SUCCESS);
         } else {                /* Parent */
             /* Close connection */
