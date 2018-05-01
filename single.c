@@ -14,16 +14,23 @@
  * @return  Exit status of server (EXIT_SUCCESS).
  **/
 int single_server(int sfd) {
+    Request *request;
     /* Accept and handle HTTP request */
     while (true) {
     	/* Accept request */
-
+        request = accept_request(sfd); 
 	/* Handle request */
-
+        if(!request){
+            continue;
+        }
+        HTTPStatus result;
+        result = handle_request(request);
 	/* Free request */
+        free_request(request);
     }
 
     /* Close server socket */
+    close(sfd);
     return EXIT_SUCCESS;
 }
 

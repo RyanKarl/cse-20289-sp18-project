@@ -21,13 +21,33 @@ int forking_server(int sfd) {
     /* Accept and handle HTTP request */
     while (true) {
     	/* Accept request */
-
+        Request *request = accept_request(sfd);
+        if(!request){
+            continue;
+        }
 	/* Ignore children */
-
+        signal(SIGCHLD, SIG_IGN);
 	/* Fork off child process to handle request */
+        pid_t pid = fork();
+        if (pid < 0) {          /* Error */
+            fprintf(stderr, "Unable to fork: %s\n", strerror(errno));
+            free_request(request);
+        } else if (pid == 0) {  /* Child */
+            /* Read from client and then echo back */
+            char buffer[BUFSIZ];
+            while (fgets(buffer, BUFSIZ, request)) {
+                fputs(buffer, request);
+            }
+            fclose(request);
+            exit(EXIT_SUCCESS);
+        } else {                /* Parent */
+            /* Close connection */
+            free_reqeust(request);
+        }
     }
 
     /* Close server socket */
+    close(sfd);   
     return EXIT_SUCCESS;
 }
 
