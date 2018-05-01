@@ -44,6 +44,42 @@ void usage(const char *progname, int status) {
  * if specified.
  */
 bool parse_options(int argc, char *argv[], ServerMode *mode) {
+    char *progname = argv[0];
+    int argind = 1;
+    while(argind < argc && argv[argind][0] == '-' && strlen(argv[argind]) > 1){
+        char *arg = argv[argind++];
+        switch(arg[1]):
+            case 'h':
+                usage(progname,0);
+                break;
+            case 'c':
+                if streq(argv[argind],"single"){
+                    mode = SINGLE;
+                } 
+                else if(streq(argv[argind],"forking")){
+                    mode = FORKING;
+                } else {
+                    usage(progname,1);
+                }
+                argind++;
+                break;
+            case 'm':
+                MimeTypesPath = argv[argind++];
+                break;
+            case 'M':
+                DefaultMimeType = argv[argind++];
+                break;
+            case 'p':
+                Port = argv[argind++];
+                break;
+            case 'r':
+                RootPath = argv[argind++];
+                break;
+            default:
+                usage(progname,1);
+                break;
+        }
+    }
     return true;
 }
 
@@ -54,10 +90,19 @@ int main(int argc, char *argv[]) {
     ServerMode mode;
 
     /* Parse command line options */
-
+    parse_options(argc, argv, mode);
     /* Listen to server socket */
-
+    int sfd = socket_listen(Port);
+    if(sfd < 0){
+        return EXIT_FAILURE;
+    }
     /* Determine real RootPath */
+    char buffer[BUFSIZ];
+    RootPath = realpath(RootPath,buffer);
+    if(!RootPath){
+        fprintf(stderr,"realpath failed: %s\n",strerror(errno)); 
+        return EXIT_FAILURE;
+    }
 
     log("Listening on port %s", Port);
     debug("RootPath        = %s", RootPath);
@@ -66,7 +111,13 @@ int main(int argc, char *argv[]) {
     debug("ConcurrencyMode = %s", mode == SINGLE ? "Single" : "Forking");
 
     /* Start either forking or single HTTP server */
-    return EXIT_SUCCESS;
+    int status;
+    if(mode == 0){
+        status = single_server(sfd);
+    } else {
+        status = forking_server(sfd);
+    }
+    return status;
 }
 
 /* vim: set expandtab sts=4 sw=4 ts=8 ft=c: */
