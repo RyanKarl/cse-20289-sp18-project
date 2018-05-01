@@ -50,10 +50,10 @@ HTTPStatus  handle_request(Request *r) {
 
     /* Dispatch to appropriate request handler type based on file type */
     struct stat s;
-    if(stat(r->file, &s) < 0)
+    if(stat(r->path, &s) < 0)
     {
         fprintf(stderr, "stat failed: %s\n", strerror(errno));
-        result = HTTP_STATUS_SERVER_ERROR;
+        result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
     }
 
     if ((s.st_mode & S_IFMT) == S_IFDIR)
@@ -61,22 +61,22 @@ HTTPStatus  handle_request(Request *r) {
         result = handle_browse_request(r);
     }
 
-    int cgi = access(r->file, X_OK);
+    int cgi = access(r->path, X_OK);
     if (cgi < 0)
     {
         fprintf(stderr, "access failed: %s\n", strerror(errno));
-        result = HTTP_STATUS_SERVER_ERROR;
+        result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
     }
     else if (cgi == 0) 
     {
         result = handle_cgi_request(r);
     }
 
-    int file_num = access(r->file, R_OK);
-    if (fle_num < 0)
+    int file_num = access(r->path, R_OK);
+    if (file_num < 0)
     {   
         fprintf(stderr, "access failed: %s\n", strerror(errno)); 
-        result = HTTP_STATUS_SERVER_ERROR;
+        result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
     }
     else if (file_num == 0)
     {
@@ -103,20 +103,14 @@ HTTPStatus  handle_browse_request(Request *r) {
     int n;
 
     /* Open a directory for reading or scanning */
-    n = scandir(r->file, &entries, NULL, alphasort);
-    if (scan_num)
+    n = scandir(r->path, &entries, NULL, alphasort);
+    if (n < 0)
     {
         fprintf(stderr, "scandir failed: %s\n", strerror(errno));
         return HTTP_STATUS_NOT_FOUND;
     }
 
     /* Write HTTP Header with OK Status and text/html Content-Type */
-    /*char buffer[BUFSIZ];
-    for (Header * h = r->headers; *h; h++)
-    {
-        sprintf(buffer, "%s: %s\n", h->name, h->value);
-        fprintf(r->file, buffer);
-    }*/
     fprintf(r->file, "HTTP/1.0 200 OK\n");
     fprintf(r->file, "Content-Type: text/html\n");
     fprintf(r->file, "\r\n");
@@ -126,7 +120,7 @@ HTTPStatus  handle_browse_request(Request *r) {
     fprintf(r->file, "<ul>");
     for (int i = 0; i < n; i++)
     {
-        fprintf(r->file, "<li>%s</li>", entries[i]);
+        fprintf(r->file, "<li>%s</li>", entries[i]->d_name);
         free(entries[i]);
     }
     fprintf(r->file, "</ul>");
@@ -135,7 +129,7 @@ HTTPStatus  handle_browse_request(Request *r) {
     free(entries);
     if (fflush(r->file) < 0)
     {
-        fprintf(stderr, "fflush failed: %s\m", strerror(errno));
+        fprintf(stderr, "fflush failed: %s\n", strerror(errno));
         return 418;
     }
     return HTTP_STATUS_OK;
@@ -159,24 +153,41 @@ HTTPStatus  handle_file_request(Request *r) {
     size_t nread;
 
     /* Open file for reading */
-    int fd = fopen(r->file);
-    if (fd < 0)
+    fs = fopen(r->path, "r+");
+    if (fs < 0)
     {
         fprintf(stderr, "fopen failed: %s\n", strerror(errno));
-        //return HTTP_STATUS_
+        goto fail;
     }
 
     /* Determine mimetype */
+    mimetype = determine_mimetype(r->path);
 
     /* Write HTTP Headers with OK status and determined Content-Type */
+    fprintf(r->file, "HTTP/1.0 200 OK\n");
+    fprintf(r->file, "Content-Type: %s\n", mimetype);
+    fprintf(r->file, "\r\n");
 
     /* Read from file and write to socket in chunks */
+    while(fread(buffer, BUFSIZ, sizeof(buffer)/sizeof(buffer[0]), fs))
+    {
+        fwrite(buffer, BUFSIZ, sizeof(buffer)/sizeof(buffer[0]), r->file);
+    }
 
     /* Close file, flush socket, deallocate mimetype, return OK */
+    fclose(fs);
+    if (fflush(r->file) < 0)
+    {
+        fprintf(stderr, "fflush failed: %s\n", strerror(errno));
+        return 418;
+    }
+    free(mimetype);
     return HTTP_STATUS_OK;
 
 fail:
     /* Close file, free mimetype, return INTERNAL_SERVER_ERROR */
+    fclose(fs);
+    free(mimetype);
     return HTTP_STATUS_INTERNAL_SERVER_ERROR;
 }
 
@@ -198,14 +209,70 @@ HTTPStatus handle_cgi_request(Request *r) {
 
     /* Export CGI environment variables from request structure:
      * http://en.wikipedia.org/wiki/Common_Gateway_Interface */
+    char * struct_names[] = {
+        "QUERY_STRING",
+        "REMOTE_PORT",
+        "REQUEST_METHOD",
+        "REQUEST_URI",
+        "HTTP_HOST"
+    };
 
+    char * struct_values[] = {
+        r->query,
+        r->port,
+        r->method,
+        r->uri,
+        r->host
+    };
+    for (int i = 0; i < sizeof(struct_names)/sizeof(char *); i++)
+    {
+        setenv(struct_names[i], struct_values[i], 1);
+    }
+ 
     /* Export CGI environment variables from request headers */
+    char * header_names[] = {
+        "DOCUMENT_ROOT",
+        "REMOTE_ADDR",
+        "SCRIPT_FILENAME",
+        "SERVER_PORT",
+        "HTTP_ACCEPT",
+        "HTTP_ACCEPT_LANGUAGE",
+        "HTTP_ACCEPT_ENCODING",
+        "HTTP_CONNECTION",
+        "HTTP_USER_AGENT"
+    };
+
+    char * header_values[] = {
+        
+    };
+
+    for (int j = 0; j < sizeof(header_names)/sizeof(char *); j++)
+    {
+        setenv(header_names[j], header_values[j], 1);
+    }
 
     /* POpen CGI Script */
+    pfs = popen();
+    if (pfs == NULL)
+    {
+        fprintf(stderr, "popen failed: %s\n", strerror(errno));
+        pclose(pfs);
+        return HTTP_STATUS_NOT_FOUND;
+    }
 
     /* Copy data from popen to socket */
+    while(fgets(buffer, BUFSIZ, pfs))
+    {
+        fputs(buffer, r->file);
+    }
 
     /* Close popen, flush socket, return OK */
+    pclose(pfs);
+    if (fflush(r->file) < 0)
+    {
+        fprintf(stderr, "fflush failed: %s\n", strerror(errno));
+        return 418;
+    }
     return HTTP_STATUS_OK;
 }
 
@@ -227,10 +294,10 @@ HTTPStatus  handle_error(Request *r, HTTPStatus status) {
 
     /* Write HTTP Header */
     char buffer[BUFSIZ];
-    for (Header * h = r->headers; *h; h++)
+    for (Header * h = r->headers; h != NULL; h++)
     {
         sprintf(buffer, "%s: %s\n", h->name, h->value);
-        fputs(buffer);
+        fputs(buffer, r->file);
     }
 
     /* Write HTML Description of Error*/
