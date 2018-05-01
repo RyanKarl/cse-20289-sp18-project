@@ -89,8 +89,12 @@ bool parse_options(int argc, char *argv[], ServerMode *mode) {
 int main(int argc, char *argv[]) {
     ServerMode mode;
 
+    bool parseResult;
     /* Parse command line options */
-    parse_options(argc, argv, &mode);
+    parseResult = parse_options(argc, argv, &mode);
+    if(!parseResult){
+        return EXIT_FAILURE;
+    }
     /* Listen to server socket */
     int sfd = socket_listen(Port);
     if(sfd < 0){

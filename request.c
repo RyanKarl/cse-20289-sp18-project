@@ -31,7 +31,7 @@ int parse_request_headers(Request *r);
 Request * accept_request(int sfd) {
     Request *r;
     struct sockaddr raddr;
-    socklen_t rlen;
+    socklen_t rlen = sizeof(struct sockaddr);
 
     /* Allocate request struct (zeroed) */
     r = calloc(1, sizeof(Request));
@@ -51,11 +51,9 @@ Request * accept_request(int sfd) {
     r->fd = client_fd;
 
     /* Lookup client information */
-    char * host = r->host;
-    char * port = r->port;
     int  flags = NI_NUMERICHOST | NI_NUMERICSERV;
     int  status;
-    if ((status = getnameinfo(&raddr, rlen, host, sizeof(host), port, sizeof(port), flags)) != 0) {
+    if ((status = getnameinfo(&raddr, rlen, r->host, sizeof(r->host), r->port, sizeof(r->port), flags)) != 0) {
         fprintf(stderr, "Unable to lookup request : %s\n", gai_strerror(status));
         goto fail;
     }
@@ -179,24 +177,25 @@ int parse_request_method(Request *r) {
     }
 
     /* Parse method and uri */
-    method = strtok(buffer, " \t\n");
+    method = strtok(buffer, " ");
     if (method == NULL)
     {
         fprintf(stderr, "strtok failed: %s\n", strerror(errno));
         goto fail;
     }
-    method = skip_whitespace(method);
 
-    uri = strtok(buffer, " \t\n");
-    if (method == NULL)
+    uri = strtok(NULL, " ");
+    debug("uri: %s",uri);
+    if (uri == NULL)
     {
         fprintf(stderr, "strtok failed: %s\n", strerror(errno));
         goto fail;
     }
     uri = skip_whitespace(uri);
-
+    
     /* Parse query from uri */
     query = strchr(uri, '?');
+    debug("query: %s:", query);
 
     /* Record method, uri, and query in request struct */
     r->method = strdup(method);
