@@ -37,7 +37,6 @@ char * determine_mimetype(const char *path) {
     char *ext;
     char *mimetype;
     char *token;
-    char *endToken;
     char buffer[BUFSIZ];
     FILE *fs = NULL;
 
@@ -50,19 +49,15 @@ char * determine_mimetype(const char *path) {
     }
     /* Scan file for matching file extensions */
     while(fgets(buffer,BUFSIZ,fs)){
-        mimetype = buffer;
-        token  = skip_nonwhitespace(mimetype);
-        *token = '\0';
-        token++;
-        while(token != '\0'){
-            token  = skip_whitespace(token);
-            endToken = skip_nonwhitespace(token);
-            *endToken = '\0';
-            if(strcmp(token, ext) == 0){
+        mimetype = strtok(buffer," ");
+        token = mimetype+1;
+        token = skip_whitespace(token);
+        token = strtok(token, " ");
+        while(token != NULL){
+            if(streq(token, ext)){
                 return mimetype;
             }
-            endToken++;
-            token = endToken;
+            token = strtok(NULL," ");
         }
     }
     return DefaultMimeType;
@@ -85,10 +80,10 @@ char * determine_mimetype(const char *path) {
  * string must later be free'd.
  **/
 char * determine_request_path(const char *uri) {
-    //char buffer[BUFSIZ];
-    char * path = strtok((char*)uri,"/"); // get to first slash
-    path++; // get to second slash
-    path = strtok(NULL, "/"); // get to beginning slash of path
+    char buffer[BUFSIZ];
+    sprintf(buffer,"%s%s",RootPath,uri);
+    char *path;
+    path = realpath(buffer,NULL); 
     debug("path: %s",path);
     return path;
 }

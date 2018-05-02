@@ -108,8 +108,8 @@ void free_request(Request *r) {
     Header * temp = r->headers;
     while (h != NULL)
     {
-        temp = h->next;
-        h = temp;
+        temp = h;
+        h = h->next;
         free(temp);
     }
     r->headers = NULL;

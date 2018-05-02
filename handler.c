@@ -60,14 +60,13 @@ HTTPStatus  handle_request(Request *r) {
     {
         result = handle_browse_request(r);
     }
-
     int cgi = access(r->path, X_OK);
     if (cgi < 0)
     {
         fprintf(stderr, "access failed: %s\n", strerror(errno));
         result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
     }
-    else if (cgi == 0) 
+    else if (cgi == 0 && (s.st_mode & S_IFMT) == S_IFREG) 
     {
         result = handle_cgi_request(r);
     }
@@ -78,7 +77,7 @@ HTTPStatus  handle_request(Request *r) {
         fprintf(stderr, "access failed: %s\n", strerror(errno)); 
         result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
     }
-    else if (file_num == 0)
+    else if (file_num == 0 && cgi != 0)
     {
         result = handle_file_request(r);
     }
@@ -120,7 +119,7 @@ HTTPStatus  handle_browse_request(Request *r) {
     fprintf(r->file, "<ul>");
     for (int i = 0; i < n; i++)
     {
-        fprintf(r->file, "<li>%s</li>", entries[i]->d_name);
+        fprintf(r->file, "<li><href="%s".format(entries[i]->d_name)>%s</href></li>", entries[i]->d_name);
         free(entries[i]);
     }
     fprintf(r->file, "</ul>");
@@ -154,7 +153,7 @@ HTTPStatus  handle_file_request(Request *r) {
 
     /* Open file for reading */
     fs = fopen(r->path, "r+");
-    if (fs < 0)
+    if (!fs)
     {
         fprintf(stderr, "fopen failed: %s\n", strerror(errno));
         goto fail;
@@ -169,7 +168,7 @@ HTTPStatus  handle_file_request(Request *r) {
     fprintf(r->file, "\r\n");
 
     /* Read from file and write to socket in chunks */
-    while(fread(buffer, BUFSIZ, sizeof(buffer)/sizeof(buffer[0]), fs))
+    while(fread(buffer, 1, BUFSIZ, fs))
     {
         fwrite(buffer, BUFSIZ, sizeof(buffer)/sizeof(buffer[0]), r->file);
     }
@@ -186,7 +185,6 @@ HTTPStatus  handle_file_request(Request *r) {
 
 fail:
     /* Close file, free mimetype, return INTERNAL_SERVER_ERROR */
-    fclose(fs);
     free(mimetype);
     return HTTP_STATUS_INTERNAL_SERVER_ERROR;
 }
