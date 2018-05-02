@@ -191,7 +191,6 @@ int parse_request_method(Request *r) {
         fprintf(stderr, "strtok failed: %s\n", strerror(errno));
         goto fail;
     }
-    uri = skip_whitespace(uri);
     
     /* Parse query from uri */
     query = strchr(uri, '?');
@@ -212,12 +211,16 @@ int parse_request_method(Request *r) {
         free(r->uri);
         goto fail;
     }
-    r->query = strdup(query);
-    if (r->query == NULL)
-    {
-        fprintf(stderr, "strdup failed: %s\n", strerror(errno));
-        free(r);
-        goto fail;
+    if(query){
+        r->query = strdup(query);
+        if (r->query == NULL)
+        {
+            fprintf(stderr, "strdup failed: %s\n", strerror(errno));
+            free(r);
+            goto fail;
+        }
+    } else {
+        r->query = NULL;
     }
 
     debug("HTTP METHOD: %s", r->method);
@@ -258,35 +261,28 @@ fail:
  *      headers.append(header)
  **/
 int parse_request_headers(Request *r) {
-    struct header *curr = calloc(1, sizeof(Header));
-    if (curr == NULL)
-    {
-        fprintf(stderr, "callloc failed: %s\n", strerror(errno));
-        free(curr);
-        curr = NULL;
-        goto fail;
-    }
 
     char buffer[BUFSIZ];
     char *name;
     char *value;
+    struct header *header;
 
     /* Parse headers from socket */
-    while ((fgets(buffer, BUFSIZ, r->file)) != NULL)
+    while ((fgets(buffer, BUFSIZ, r->file)) != NULL && !streq(buffer,"\r\n"))
     {
+        debug("buffer: %s",buffer);
         name = buffer;
         name = skip_whitespace(name);
-        value = strchr(name, ':');
-        *value = '\0';
-        value++;
+        name = strtok(name,":");
+        debug("Name: %s",name);
+        value = strtok(NULL,"\r");
         value = skip_whitespace(value);
-        curr->name = name;
-        char *temp = value;
-        temp = strchr(temp, '\r');
-        temp = '\0'; temp++; // get rid of \r
-        temp = '\0'; temp++; // get rid of \n
-        curr->value = value;
-        curr++;
+        debug("value: %s",value);
+        header = malloc(sizeof(Header));
+        header->name = strdup(name);        //check to see if strdup fails
+        header->value = strdup(value);
+        header->next = r->headers;
+        r->headers = header;
     }
     
 
@@ -297,8 +293,8 @@ int parse_request_headers(Request *r) {
 #endif
     return 0;
 
-fail:
-    return -1;
+//fail:
+ //   return -1;
 }
 
 /* vim: set expandtab sts=4 sw=4 ts=8 ft=c: */

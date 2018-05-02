@@ -89,8 +89,7 @@ char * determine_request_path(const char *uri) {
     char * path = strtok((char*)uri,"/"); // get to first slash
     path++; // get to second slash
     path = strtok(NULL, "/"); // get to beginning slash of path
-    char * endToken = strchr(path, '?');
-    *endToken = '\0';
+    debug("path: %s",path);
     return path;
 }
 
