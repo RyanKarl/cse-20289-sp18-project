@@ -119,7 +119,7 @@ HTTPStatus  handle_browse_request(Request *r) {
     fprintf(r->file, "<ul>");
     for (int i = 0; i < n; i++)
     {
-        fprintf(r->file, "<li><href="%s".format(entries[i]->d_name)>%s</href></li>", entries[i]->d_name);
+        fprintf(r->file, "<li><a href='%s/%s'>%s</href></li>",RootPath,entries[i]->d_name, entries[i]->d_name);
         free(entries[i]);
     }
     fprintf(r->file, "</ul>");
@@ -230,7 +230,7 @@ HTTPStatus handle_cgi_request(Request *r) {
     }
  
     /* Export CGI environment variables from request headers */
-    char * header_names[] = {
+    /*char * header_names[] = {
         "HTTP_ACCEPT", // theses three from request headers
         "HTTP_ACCEPT_LANGUAGE",
         "HTTP_ACCEPT_ENCODING",
@@ -241,14 +241,29 @@ HTTPStatus handle_cgi_request(Request *r) {
     setenv("DOCUMENT_ROOT", RootPath, 1);
     setenv("SERVER_PORT", Port, 1);
     setenv("SCRIPT_FILENAME", strrchr(r->uri, '/'), 1); // file name in uri
-    char * val;
-    for (int j = 0; j < sizeof(header_names)/sizeof(char *); j++)
+    char * val;*/
+    struct header *headerptr = r->headers;
+    while(headerptr)
     {
-        for (struct header * h = &r->headers[0]; h != NULL; h = h->next)
-        {
-            if (strcmp(h->name, header_names[j]) == 0) val = h->value;
+        if(streq(headerptr->name,"Host")){
+            setenv("HTTP_HOST",headerptr->value,1);
         }
-        setenv(header_names[j], val, 1);
+        else if(streq(headerptr->name,"Accept")){
+            setenv("HTTP_ACCEPT",headerptr->value,1);
+        }
+        else if(streq(headerptr->name,"Accept-Language")){
+            setenv("HTTP_ACCEPT_LANGUAGE",headerptr->value,1);
+        }
+        else if(streq(headerptr->name,"Accept-Encoding")){
+            setenv("HTTP_ACCEPT_ENCODING",headerptr->value,1);
+        }
+        else if(streq(headerptr->name,"Connection")){
+            setenv("HTTP_CONNECTION",headerptr->value,1);
+        }
+        else if(streq(headerptr->name,"User-Agent")){
+            setenv("HTTP_USER_AGENT",headerptr->value,1);
+        }
+        headerptr = headerptr->next;
     }
 
     /* POpen CGI Script */
@@ -294,7 +309,7 @@ HTTPStatus  handle_error(Request *r, HTTPStatus status) {
 
     /* Write HTTP Header */
     char buffer[BUFSIZ];
-    for (Header * h = r->headers; h != NULL; h++)
+    for (Header * h = r->headers; h != NULL; h = h->next)
     {
         sprintf(buffer, "%s: %s\n", h->name, h->value);
         fputs(buffer, r->file);
