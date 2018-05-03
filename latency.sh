@@ -8,15 +8,15 @@ SUM3=0
 N=50
 n=0
 while [ $n -lt $N ]; do
-    SUM1=$(($SUM1 + $(./thor.py -r 1 -p 5 http://student01.cse.nd.edu:9005/text/file.txt | tail -n 1 | cut -d ' ' -f 5)))
-    SUM2=$(($SUM2 + $(./thor.py -r 1 -p 5 http://student01.cse.nd.edu:9005/text/ | tail -n 1 | cut -d ' ' -f 5)))
-    SUM3=$(($SUM3 + $(./thor.py -r 1 -p 5 http://student01.cse.nd.edu:9005/scripts/cowsay | tail -n 1 | cut -d ' ' -f 5)))
+    SUM1=$(echo $SUM1 + $(./thor.py -r 1 -p 5 http://student02.cse.nd.edu:9005/text/file.txt | head -n 1 | cut -d ' ' -f 5) | bc)
+    SUM2=$(echo $SUM2 + $(./thor.py -r 1 -p 5 http://student02.cse.nd.edu:9005/text/ | head -n 1 | cut -d ' ' -f 5) | bc)
+    SUM3=$(echo $SUM3 + $(./thor.py -r 1 -p 5 http://student02.cse.nd.edu:9005/scripts/cowsay | head -n 1 | cut -d ' ' -f 5)| bc)
     n=$(($n + 1))
 done
 
-AVG1=$(($SUM1 / $N))
-AVG2=$(($SUM2 / $N))
-AVG3=$(($SUM3 / $N))
+AVG1=$(echo $SUM1 / $N | bc -l)
+AVG2=$(echo $SUM2 / $N | bc -l)
+AVG3=$(echo $SUM3 / $N | bc -l)
 
 echo $AVG1
 echo $AVG2
