@@ -4,7 +4,10 @@ Project - README
 Members
 -------
 
-- Domer McDomerson (dmcdomer@nd.edu)
+- Ryan Karl (rkarl@nd.edu)
+- Keith Macdonell (kmacdone@nd.edu)
+- Kelly Malecki (kmalecki@nd.edu)
+- Stella Shu (yshu@nd.edu)
 
 Demonstration
 -------------
@@ -14,9 +17,9 @@ Link to Presentation.
 Errata
 ------
 
-Summary of things that don't work (quite right).
+It all works!
 
 Contributions
 -------------
 
-Enumeration of the contributions of each group member.
+Everybody worked super hard in roughly the same amount.
