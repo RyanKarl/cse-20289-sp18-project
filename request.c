@@ -95,7 +95,11 @@ void free_request(Request *r) {
     }
 
     /* Close socket or fd */
-    close(r->fd);
+    if(r->file){
+        fclose(r->file);
+    } else {
+        close(r->fd);
+    }
 
     /* Free allocated strings */
     free(r->method);
@@ -110,6 +114,8 @@ void free_request(Request *r) {
     {
         temp = h;
         h = h->next;
+        free(temp->name);
+        free(temp->value);
         free(temp);
     }
     r->headers = NULL;
@@ -118,7 +124,6 @@ void free_request(Request *r) {
     free(r);
     r = NULL;
 }
-
 /**
  * Parse HTTP Request.
  *
@@ -291,7 +296,7 @@ int parse_request_headers(Request *r) {
         value = skip_whitespace(value);
         debug("value: %s",value);
         header = malloc(sizeof(Header));
-        header->name = strdup(name);        //check to see if strdup fails
+        header->name = strdup(name);        
         header->value = strdup(value);
         header->next = r->headers;
         r->headers = header;
@@ -302,6 +307,7 @@ int parse_request_headers(Request *r) {
     for (struct header *header = r->headers; header != NULL; header = header->next) {
     	debug("HTTP HEADER %s = %s", header->name, header->value);
     }
+
 #endif
     return 0;
 

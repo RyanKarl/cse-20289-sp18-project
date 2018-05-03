@@ -42,31 +42,27 @@ char * determine_mimetype(const char *path) {
 
     /* Find file extension */
     ext = strrchr(path,'.')+1;
-    debug("extension: %s",ext);
     /* Open MimeTypesPath file */
     fs = fopen(MimeTypesPath,"r");
     if (!fs){
         debug("Couldn't open mimetypes file");
-        return DefaultMimeType;
+        return strdup(DefaultMimeType);
     }
     /* Scan file for matching file extensions */
     while(fgets(buffer,BUFSIZ,fs)){
         mimetype = strtok(buffer," ");
-        debug("mimetype: %s",mimetype);
         token = mimetype+1;
         token = skip_whitespace(token);
         token = strtok(token, "\n");
         token = strtok(token,WHITESPACE);
-        debug("token: %s",token);
         while(token != NULL){
             if(streq(token, ext)){
-                return mimetype;
+                return strdup(mimetype);
             }
             token = strtok(NULL,WHITESPACE);
-            debug("token: %s",token);
         }
     }
-    return DefaultMimeType;
+    return strdup(DefaultMimeType);
 }
 
 /**
@@ -88,10 +84,8 @@ char * determine_mimetype(const char *path) {
 char * determine_request_path(const char *uri) {
     char buffer[BUFSIZ];
     sprintf(buffer,"%s%s",RootPath,uri);
-    debug("buffer: %s",buffer);
     char *path;
     path = realpath(buffer,NULL); 
-    debug("path: %s",path);
     return path;
 }
 

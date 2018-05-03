@@ -110,6 +110,7 @@ HTTPStatus  handle_browse_request(Request *r) {
     if (n < 0)
     {
         fprintf(stderr, "scandir failed: %s\n", strerror(errno));
+        free(entries);
         return HTTP_STATUS_NOT_FOUND;
     }
 
@@ -124,6 +125,7 @@ HTTPStatus  handle_browse_request(Request *r) {
     for (int i = 0; i < n; i++)
     {
         if(streq(entries[i]->d_name,".")){
+            free(entries[i]);
             continue;
         }
         if(streq(r->uri,"/")){
