@@ -34,10 +34,7 @@ int forking_server(int sfd) {
             free_request(request);
         } else if (pid == 0) {  /* Child */
             /* Read from client and then echo back */
-            char buffer[BUFSIZ];
-            while (fgets(buffer, BUFSIZ, request->file)) {
-                fputs(buffer, request->file);
-            }
+            handle_request(request); 
             free_request(request);
             exit(EXIT_SUCCESS);
         } else {                /* Parent */

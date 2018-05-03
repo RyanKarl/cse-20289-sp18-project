@@ -168,6 +168,7 @@ int parse_request_method(Request *r) {
     char *method;
     char *uri;
     char *query;
+    char *replace;
 
     /* Read line from socket */
     if ((fgets(buffer, BUFSIZ, r->file)) < 0) 
@@ -193,7 +194,12 @@ int parse_request_method(Request *r) {
     }
     
     /* Parse query from uri */
+    replace = strchr(uri,'?');
     query = strchr(uri, '?');
+    if(query){
+        *replace = '\0';
+        query++;
+    }
     debug("query: %s:", query);
 
     /* Record method, uri, and query in request struct */
@@ -274,8 +280,14 @@ int parse_request_headers(Request *r) {
         name = buffer;
         name = skip_whitespace(name);
         name = strtok(name,":");
+        if(!name){
+            goto fail;
+        }
         debug("Name: %s",name);
         value = strtok(NULL,"\r");
+        if(!value){
+            goto fail;
+        }
         value = skip_whitespace(value);
         debug("value: %s",value);
         header = malloc(sizeof(Header));
@@ -293,8 +305,8 @@ int parse_request_headers(Request *r) {
 #endif
     return 0;
 
-//fail:
- //   return -1;
+fail:
+    return -1;
 }
 
 /* vim: set expandtab sts=4 sw=4 ts=8 ft=c: */

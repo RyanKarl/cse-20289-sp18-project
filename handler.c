@@ -36,6 +36,7 @@ HTTPStatus  handle_request(Request *r) {
         fprintf(stderr, "parse_request failed: %s\n", strerror(errno));
         result = HTTP_STATUS_BAD_REQUEST;
         result = handle_error(r, result);
+        return result;
     }
 
     /* Determine request path */
@@ -45,6 +46,7 @@ HTTPStatus  handle_request(Request *r) {
         fprintf(stderr, "determine_request_path failed: %s\n", strerror(errno));
         result = HTTP_STATUS_NOT_FOUND;
         result = handle_error(r, result);
+        return result;
     }
     debug("HTTP REQUEST PATH: %s", r->path);
 
@@ -54,31 +56,33 @@ HTTPStatus  handle_request(Request *r) {
     {
         fprintf(stderr, "stat failed: %s\n", strerror(errno));
         result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
+        return result;
     }
+    int cgi = access(r->path, X_OK);
+    int file_num = access(r->path, R_OK);
 
     if ((s.st_mode & S_IFMT) == S_IFDIR)
     {
         result = handle_browse_request(r);
     }
-    int cgi = access(r->path, X_OK);
-    if (cgi < 0)
+    /*if (cgi < 0)
     {
         fprintf(stderr, "access failed: %s\n", strerror(errno));
         result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
-    }
-    else if (cgi == 0 && (s.st_mode & S_IFMT) == S_IFREG) 
+    }*/
+    if (cgi == 0 && (s.st_mode & S_IFMT) == S_IFREG) 
     {
         result = handle_cgi_request(r);
     }
 
-    int file_num = access(r->path, R_OK);
-    if (file_num < 0)
+    /*if (file_num < 0)
     {   
         fprintf(stderr, "access failed: %s\n", strerror(errno)); 
         result = HTTP_STATUS_INTERNAL_SERVER_ERROR;
-    }
+    }*/
     else if (file_num == 0 && cgi != 0)
     {
+        debug("got in here");
         result = handle_file_request(r);
     }
 
@@ -119,7 +123,14 @@ HTTPStatus  handle_browse_request(Request *r) {
     fprintf(r->file, "<ul>");
     for (int i = 0; i < n; i++)
     {
-        fprintf(r->file, "<li><a href='%s/%s'>%s</href></li>",RootPath,entries[i]->d_name, entries[i]->d_name);
+        if(streq(entries[i]->d_name,".")){
+            continue;
+        }
+        if(streq(r->uri,"/")){
+            fprintf(r->file, "<li><a href=\"%s%s\">%s</a></li>\n",r->uri,entries[i]->d_name, entries[i]->d_name);
+        } else {
+            fprintf(r->file, "<li><a href=\"%s/%s\">%s</a></li>\n",r->uri,entries[i]->d_name, entries[i]->d_name);
+        }
         free(entries[i]);
     }
     fprintf(r->file, "</ul>");
@@ -152,7 +163,7 @@ HTTPStatus  handle_file_request(Request *r) {
     //size_t nread;
 
     /* Open file for reading */
-    fs = fopen(r->path, "r+");
+    fs = fopen(r->path, "r");
     if (!fs)
     {
         fprintf(stderr, "fopen failed: %s\n", strerror(errno));
@@ -168,9 +179,13 @@ HTTPStatus  handle_file_request(Request *r) {
     fprintf(r->file, "\r\n");
 
     /* Read from file and write to socket in chunks */
-    while(fread(buffer, 1, BUFSIZ, fs))
+    int nread;
+    while((nread = fread(buffer, 1, BUFSIZ, fs)) > 0)
     {
-        fwrite(buffer, BUFSIZ, sizeof(buffer)/sizeof(buffer[0]), r->file);
+        int nwritten = fwrite(buffer,1,nread, r->file);
+        while(nwritten != nread){
+            nwritten += fwrite(buffer+nwritten,1,nread-nwritten,r->file);
+        }
     }
 
     /* Close file, flush socket, deallocate mimetype, return OK */
@@ -207,41 +222,21 @@ HTTPStatus handle_cgi_request(Request *r) {
 
     /* Export CGI environment variables from request structure:
      * http://en.wikipedia.org/wiki/Common_Gateway_Interface */
-    char * struct_names[] = {
-        "QUERY_STRING",
-        "REMOTE_PORT",
-        "REQUEST_METHOD",
-        "REQUEST_URI",
-        "HTTP_HOST",
-        "REMOTE_ADDR"
-    };
-
-    char * struct_values[] = {
-        r->query,
-        r->port,
-        r->method,
-        r->uri,
-        r->host,
-        r->host
-    };
-    for (int i = 0; i < sizeof(struct_names)/sizeof(char *); i++)
-    {
-        setenv(struct_names[i], struct_values[i], 1);
+    if(!r->query){
+        setenv("QUERY_STRING","",1);
+    } else {
+        setenv("QUERY_STRING",r->query,1);
     }
+    setenv("REMOTE_PORT",r->port,1);
+    setenv("REQUEST_METHOD",r->method,1);
+    setenv("REQUEST_URI",r->uri,1);
+    setenv("REMOTE_ADDR",r->host,1);
+    setenv("DOCUMENT_ROOT",RootPath,1);
+    setenv("SCRIPT_FILENAME",r->path,1);
+    setenv("SERVER_PORT",Port,1);
  
+    //DOCUMENT_ROOT, SCRIPT_FILENAME, SERVER_PORT
     /* Export CGI environment variables from request headers */
-    /*char * header_names[] = {
-        "HTTP_ACCEPT", // theses three from request headers
-        "HTTP_ACCEPT_LANGUAGE",
-        "HTTP_ACCEPT_ENCODING",
-        "HTTP_CONNECTION",
-        "HTTP_USER_AGENT"
-    };
-
-    setenv("DOCUMENT_ROOT", RootPath, 1);
-    setenv("SERVER_PORT", Port, 1);
-    setenv("SCRIPT_FILENAME", strrchr(r->uri, '/'), 1); // file name in uri
-    char * val;*/
     struct header *headerptr = r->headers;
     while(headerptr)
     {
@@ -267,6 +262,7 @@ HTTPStatus handle_cgi_request(Request *r) {
     }
 
     /* POpen CGI Script */
+    debug("r->path: %s",r->path);
     pfs = popen(r->path, "r"); // pass in path user requested 
     if (pfs == NULL)
     {
@@ -301,6 +297,7 @@ HTTPStatus handle_cgi_request(Request *r) {
  * notify the user of the error.
  **/
 HTTPStatus  handle_error(Request *r, HTTPStatus status) {
+    debug("got into handle_error");
     const char *status_string = http_status_string(status);
     // 200
     // 400 - bad request
@@ -308,16 +305,14 @@ HTTPStatus  handle_error(Request *r, HTTPStatus status) {
     // 500 - internal server error
 
     /* Write HTTP Header */
-    char buffer[BUFSIZ];
-    for (Header * h = r->headers; h != NULL; h = h->next)
-    {
-        sprintf(buffer, "%s: %s\n", h->name, h->value);
-        fputs(buffer, r->file);
-    }
+    fprintf(r->file, "HTTP/1.0 %s\r\n",status_string);
+    fprintf(r->file, "Content-Type: text/html\r\n");
+    fprintf(r->file, "\r\n");
 
     /* Write HTML Description of Error*/
-    fputs(status_string, r->file);
+    fprintf(r->file, "<li> %s</li>\n",status_string);
 
+    fflush(r->file);
     /* Return specified status */
     return status;
 }
