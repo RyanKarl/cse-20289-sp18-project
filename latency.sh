@@ -8,7 +8,7 @@ SUM3=0
 N=50
 n=0
 while [ $n -lt $N ]; do
-    SUM1=$(($SUM1 + $(./thor.py -r 1 -p 5 http://student01.cse.nd.edu:9005/text/lyrics.txt | tail -n 1 | cut -d ' ' -f 5)))
+    SUM1=$(($SUM1 + $(./thor.py -r 1 -p 5 http://student01.cse.nd.edu:9005/text/file.txt | tail -n 1 | cut -d ' ' -f 5)))
     SUM2=$(($SUM2 + $(./thor.py -r 1 -p 5 http://student01.cse.nd.edu:9005/text/ | tail -n 1 | cut -d ' ' -f 5)))
     SUM3=$(($SUM3 + $(./thor.py -r 1 -p 5 http://student01.cse.nd.edu:9005/scripts/cowsay | tail -n 1 | cut -d ' ' -f 5)))
     n=$(($n + 1))
